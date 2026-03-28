@@ -63,7 +63,7 @@ export default function OrderDetail() {
       </div>
 
       <div className="card" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
+        <div className="order-header-flex">
           <div>
             <h2 className="card-title">Order #{order.id.split('-')[0]}</h2>
             <p className="form-label" style={{ marginBottom: 0 }}>Customer ID: {order.customer_id}</p>
@@ -71,58 +71,60 @@ export default function OrderDetail() {
           <span className={`status-badge status-${order.status}`}>{order.status.replace('_', ' ').toUpperCase()}</span>
         </div>
 
-        <div className="lifecycle-stepper" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', marginTop: '3rem' }}>
-          <div style={{ position: 'absolute', top: '15px', left: 0, right: 0, height: '2px', background: 'var(--border)', zIndex: 1 }}></div>
-          {STEPS.map((step, index) => {
-            const isCompleted = index < currentStepIndex || order.status === 'installed';
-            const isCurrent = index === currentStepIndex;
+        <div className="stepper-container">
+          <div className="lifecycle-stepper">
+            <div style={{ position: 'absolute', top: '15px', left: 0, right: 0, height: '2px', background: 'var(--border)', zIndex: 1 }}></div>
+            {STEPS.map((step, index) => {
+              const isCompleted = index < currentStepIndex || order.status === 'installed';
+              const isCurrent = index === currentStepIndex;
 
-            return (
-              <div
-                key={step.id}
-                className={`step-item ${isCurrent ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  position: 'relative',
-                  zIndex: 2,
-                  flex: 1,
-                  cursor: 'pointer'
-                }}
-                onClick={() => updateStatus(step.id)}
-              >
-                <div style={{
-                  background: isCompleted ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--surface)',
-                  color: (isCompleted || isCurrent) ? 'white' : 'var(--text-muted)',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `2px solid ${isCompleted ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border)'}`,
-                  boxShadow: isCurrent ? '0 0 0 4px rgba(79, 70, 229, 0.1)' : 'none'
-                }}>
-                  {isCompleted ? <CheckCircle size={18} /> : index + 1}
+              return (
+                <div
+                  key={step.id}
+                  className={`step-item ${isCurrent ? 'active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    position: 'relative',
+                    zIndex: 2,
+                    flex: 1,
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => updateStatus(step.id)}
+                >
+                  <div style={{
+                    background: isCompleted ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--surface)',
+                    color: (isCompleted || isCurrent) ? 'white' : 'var(--text-muted)',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `2px solid ${isCompleted ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--border)'}`,
+                    boxShadow: isCurrent ? '0 0 0 4px rgba(79, 70, 229, 0.1)' : 'none'
+                  }}>
+                    {isCompleted ? <CheckCircle size={18} /> : index + 1}
+                  </div>
+                  <span style={{
+                    fontSize: '0.65rem',
+                    textAlign: 'center',
+                    fontWeight: isCurrent ? 600 : 400,
+                    maxWidth: '70px',
+                    color: isCurrent ? 'var(--primary)' : 'var(--text-muted)'
+                  }}>
+                    {step.label}
+                  </span>
                 </div>
-                <span style={{
-                  fontSize: '0.65rem',
-                  textAlign: 'center',
-                  fontWeight: isCurrent ? 600 : 400,
-                  maxWidth: '70px',
-                  color: isCurrent ? 'var(--primary)' : 'var(--text-muted)'
-                }}>
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+      <div className="dashboard-grid-top">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', gridColumn: 'span 2' }}>
           <div className="card">
             <h3 className="card-title">Machine Information</h3>

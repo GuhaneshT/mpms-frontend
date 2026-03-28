@@ -545,6 +545,28 @@ tr:last-child td {
   text-align: center;
 }
 
+/* Order Lifecycle Mobile fixes */
+.order-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.stepper-container {
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  margin-top: 3rem;
+}
+
+.lifecycle-stepper {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  min-width: 650px;
+}
+
 @media (max-width: 768px) {
   .dashboard-grid-top,
   .dashboard-grid-bottom {
@@ -553,5 +575,10 @@ tr:last-child td {
   
   .dashboard-grid-bottom > .card {
     min-height: 300px;
+  }
+  
+  .order-header-flex {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
