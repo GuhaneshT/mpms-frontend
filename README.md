@@ -1,16 +1,45 @@
-# React + Vite
+# M-PMS Frontend (Machine Management PMS)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React frontend for the Machine Management Property Management System (M-PMS), built with Vite. It provides a sleek, modern, and responsive interface for tracking machine lifecycles, service calls, and reliability metrics.
 
-Currently, two official plugins are available:
+## Tech Stack
+*   **Framework:** React 18 + Vite
+*   **State Management & Auth:** Supabase Client
+*   **Styling:** Custom CSS (Modular, Light SaaS Aesthetic)
+*   **Icons:** Lucide React
+*   **Charting:** Recharts
+*   **Routing:** React Router DOM
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Prerequisites
+*   Node.js (v18+)
+*   npm or yarn
 
-## React Compiler
+## Local Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/GuhaneshT/mpms-frontend.git
+    cd mpms-frontend
+    ```
 
-## Expanding the ESLint configuration
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3.  **Configure Environment Variables:**
+    Create a `.env` file in the root of the `frontend` directory and add your Supabase credentials and the Backend API URL:
+    ```env
+    VITE_SUPABASE_URL=your_supabase_project_url
+    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+    VITE_API_URL=http://localhost:8000 # Use your Render URL for production
+    ```
+
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+    The application will be available at `http://localhost:5173`.
+
+## Deployment
+This frontend is optimized for deployment on [Vercel](https://vercel.com). Simply connect this GitHub repository to Vercel, select the **Vite** framework preset, and add the three environment variables listed above.
