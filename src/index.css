@@ -525,3 +525,33 @@ tr:last-child td {
   stroke: var(--border-light);
 }
 
+/* Dashboard Responsive Grids */
+.dashboard-grid-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-grid-bottom {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+.dashboard-stats-flex {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid-top,
+  .dashboard-grid-bottom {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-grid-bottom > .card {
+    min-height: 300px;
+  }
+}

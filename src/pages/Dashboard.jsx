@@ -31,7 +31,7 @@ export default function Dashboard() {
         <h1 className="page-title">Dashboard Overview</h1>
       </div>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+      <div className="dashboard-grid-top">
         <div className="card">
           <h2 className="card-title">Welcome back, {user?.email?.split('@')[0] || 'User'}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
@@ -39,7 +39,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+          <div className="dashboard-stats-flex">
              <div>
                 <p className="form-label" style={{ marginBottom: '0.25rem' }}>Open Calls</p>
                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--error)' }}>{metrics.open_service_calls_count}</p>
@@ -52,7 +52,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+      <div className="dashboard-grid-bottom">
         <div className="card">
           <h3 className="card-title">Machine Reliability (Failure Trends)</h3>
           <p className="form-label" style={{ marginBottom: '1.5rem' }}>Number of open/in-progress service calls aggregated by machine model.</p>
