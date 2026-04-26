@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
-import { ArrowLeft, Settings, Wrench, Shield, Calendar } from 'lucide-react';
+import { ArrowLeft, Settings, Wrench, Shield, Calendar, Activity } from 'lucide-react';
 import Modal from '../components/Modal';
 
 export default function MachineDetail() {
@@ -16,7 +16,14 @@ export default function MachineDetail() {
     status: '',
     installation_date: '',
     warranty_start: '',
-    warranty_end: ''
+    warranty_end: '',
+    dia: '',
+    gauge: '',
+    feeders: '',
+    commissioning_date: '',
+    motor_hp: '',
+    inverter_capacity: '',
+    input_voltage: ''
   });
   const [updating, setUpdating] = useState(false);
 
@@ -46,7 +53,14 @@ export default function MachineDetail() {
       status: machine.status || 'in_transit',
       installation_date: machine.installation_date ? machine.installation_date.toString().split('T')[0] : '',
       warranty_start: machine.warranty_start ? machine.warranty_start.toString().split('T')[0] : '',
-      warranty_end: machine.warranty_end ? machine.warranty_end.toString().split('T')[0] : ''
+      warranty_end: machine.warranty_end ? machine.warranty_end.toString().split('T')[0] : '',
+      dia: machine.dia || '',
+      gauge: machine.gauge || '',
+      feeders: machine.feeders || '',
+      commissioning_date: machine.commissioning_date ? machine.commissioning_date.toString().split('T')[0] : '',
+      motor_hp: machine.motor_hp || '',
+      inverter_capacity: machine.inverter_capacity || '',
+      input_voltage: machine.input_voltage || ''
     });
     setIsEditModalOpen(true);
   };
@@ -56,8 +70,14 @@ export default function MachineDetail() {
     setUpdating(true);
     try {
       const payload = { ...editFormData };
-      // clean empty strings to null
-      Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = null; });
+      // clean empty strings to null or correct dates
+      Object.keys(payload).forEach(k => { 
+        if (payload[k] === '') {
+          payload[k] = null;
+        } else if (k.includes('date') || k.includes('warranty')) {
+           payload[k] = new Date(payload[k]).toISOString();
+        }
+      });
       await api.patch(`/machines/${id}`, payload);
       setIsEditModalOpen(false);
       fetchData();
@@ -69,11 +89,16 @@ export default function MachineDetail() {
     }
   };
 
+  const f = (field) => ({
+    value: editFormData[field] || '',
+    onChange: e => setEditFormData({ ...editFormData, [field]: e.target.value })
+  });
+
   return (
     <div>
       <div className="page-header">
-        <Link to="/machines" className="btn btn-outline" style={{ border: 'none', padding: 0 }}>
-          <ArrowLeft size={20} /> Back to Machines
+        <Link to="/orders" className="btn btn-outline" style={{ border: 'none', padding: 0 }}>
+          <ArrowLeft size={20} /> Back
         </Link>
         <h1 className="page-title">Machine Profile</h1>
       </div>
@@ -102,17 +127,39 @@ export default function MachineDetail() {
 
           <hr style={{ border: 'none', height: '1px', background: 'var(--border)', margin: '1.5rem 0' }} />
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'min-content 1fr', gap: '1rem', rowGap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'min-content 1fr', gap: '1rem', rowGap: '1rem' }}>
             <Shield size={18} className="text-muted" />
             <div>
-              <p className="form-label">Vendor</p>
+              <p className="form-label mb-1">Vendor</p>
               <p style={{ fontSize: '0.875rem' }}>{machine.vendor || 'Unknown'}</p>
+            </div>
+            <Activity size={18} className="text-muted" />
+            <div>
+              <p className="form-label mb-1">Machine Specifications</p>
+              <p style={{ fontSize: '0.875rem' }}>
+                Dia: {machine.dia || '-'} | Gauge: {machine.gauge || '-'} | Feeders: {machine.feeders || '-'}
+              </p>
+            </div>
+            <Activity size={18} className="text-muted" />
+            <div>
+              <p className="form-label mb-1">Power Details</p>
+              <p style={{ fontSize: '0.875rem' }}>
+                Motor HP: {machine.motor_hp || '-'} | Inverter: {machine.inverter_capacity || '-'} | Voltage: {machine.input_voltage || '-'}
+              </p>
             </div>
             <Calendar size={18} className="text-muted" />
             <div>
-              <p className="form-label">Warranty End</p>
+              <p className="form-label mb-1">Commissioning Date</p>
               <p style={{ fontSize: '0.875rem' }}>
-                {machine.warranty_end ? new Date(machine.warranty_end).toLocaleDateString() : 'No Warranty'}
+                {machine.commissioning_date ? new Date(machine.commissioning_date).toLocaleDateString() : 'Pending'}
+              </p>
+            </div>
+            <Calendar size={18} className="text-muted" />
+            <div>
+              <p className="form-label mb-1">Warranty Period</p>
+              <p style={{ fontSize: '0.875rem' }}>
+                Start: {machine.warranty_start ? new Date(machine.warranty_start).toLocaleDateString() : '-'} <br/>
+                End: {machine.warranty_end ? new Date(machine.warranty_end).toLocaleDateString() : 'No Warranty'}
               </p>
             </div>
           </div>
@@ -168,28 +215,51 @@ export default function MachineDetail() {
       </div>
       
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Machine">
-        <form onSubmit={handleUpdate}>
+        <form onSubmit={handleUpdate} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '1rem' }}>
           <div className="form-group">
             <label className="form-label">Status</label>
-            <select className="form-input" required value={editFormData.status} onChange={e => setEditFormData({...editFormData, status: e.target.value})}>
+            <select className="form-input" required {...f('status')}>
               <option value="in_transit">In Transit</option>
-              <option value="installed">Installed</option>
+              <option value="commissioned">Commissioned</option>
               <option value="under_maintenance">Under Maintenance</option>
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Installation Date</label>
-            <input type="date" className="form-input" value={editFormData.installation_date} onChange={e => setEditFormData({...editFormData, installation_date: e.target.value})} />
+
+          <h4 style={{ margin: '1rem 0 0.5rem 0' }}>Machine Specifications</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div className="form-group"><label className="form-label">Dia</label><input type="text" className="form-input" {...f('dia')} /></div>
+            <div className="form-group"><label className="form-label">Gauge</label><input type="text" className="form-input" {...f('gauge')} /></div>
+            <div className="form-group"><label className="form-label">Feeders</label><input type="text" className="form-input" {...f('feeders')} /></div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Warranty Start</label>
-            <input type="date" className="form-input" value={editFormData.warranty_start} onChange={e => setEditFormData({...editFormData, warranty_start: e.target.value})} />
+
+          <h4 style={{ margin: '1rem 0 0.5rem 0' }}>Power Details</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div className="form-group"><label className="form-label">Motor HP</label><input type="text" className="form-input" {...f('motor_hp')} /></div>
+            <div className="form-group"><label className="form-label">Inverter Cap.</label><input type="text" className="form-input" {...f('inverter_capacity')} /></div>
+            <div className="form-group"><label className="form-label">Input Voltage</label><input type="text" className="form-input" {...f('input_voltage')} /></div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Warranty End</label>
-            <input type="date" className="form-input" value={editFormData.warranty_end} onChange={e => setEditFormData({...editFormData, warranty_end: e.target.value})} />
+
+          <h4 style={{ margin: '1rem 0 0.5rem 0' }}>Dates</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Commissioning Date</label>
+              <input type="date" className="form-input" {...f('commissioning_date')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Installation Date</label>
+              <input type="date" className="form-input" {...f('installation_date')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Warranty Start</label>
+              <input type="date" className="form-input" {...f('warranty_start')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Warranty End</label>
+              <input type="date" className="form-input" {...f('warranty_end')} />
+            </div>
           </div>
-          <div className="modal-footer">
+
+          <div className="modal-footer" style={{ position: 'sticky', bottom: '-1rem', background: 'var(--bg)', padding: '1rem 0', borderTop: '1px solid var(--border)' }}>
             <button type="button" className="btn btn-outline" onClick={() => setIsEditModalOpen(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={updating}>{updating ? 'Saving...' : 'Save Changes'}</button>
           </div>

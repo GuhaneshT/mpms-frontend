@@ -10,13 +10,22 @@ export default function Machines() {
   const [serviceCalls, setServiceCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  
+  const initialFormState = {
     order_id: '',
     serial_number: '',
     model: '',
     vendor: '',
-    status: 'in_transit'
-  });
+    status: 'in_transit',
+    dia: '',
+    gauge: '',
+    feeders: '',
+    commissioning_date: '',
+    motor_hp: '',
+    inverter_capacity: '',
+    input_voltage: ''
+  };
+  const [formData, setFormData] = useState(initialFormState);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -43,7 +52,7 @@ export default function Machines() {
     const hasOpenCall = serviceCalls.some(c => c.machine_id === machine.id && (c.status === 'open' || c.status === 'in_progress'));
     if (hasOpenCall) return 'red';
     if (machine.status === 'under_maintenance' || machine.status === 'in_transit') return 'yellow';
-    if (machine.status === 'installed') return 'green';
+    if (machine.status === 'commissioned') return 'green';
     return 'gray';
   };
 
@@ -51,25 +60,36 @@ export default function Machines() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const payload = { ...formData };
+      if (payload.commissioning_date) {
+        payload.commissioning_date = new Date(payload.commissioning_date).toISOString();
+      } else {
+        payload.commissioning_date = null;
+      }
       const cleanedData = Object.fromEntries(
-        Object.entries(formData).map(([key, value]) => [key, value === '' ? null : value])
+        Object.entries(payload).map(([key, value]) => [key, value === '' ? null : value])
       );
       await api.post('/machines', cleanedData);
       setIsModalOpen(false);
-      setFormData({ order_id: '', serial_number: '', model: '', vendor: '', status: 'in_transit' });
+      setFormData(initialFormState);
       fetchData();
     } catch (err) {
       console.error("Error adding machine:", err);
-      alert("Failed to add machine. Note: Each order can only have one machine.");
+      alert("Failed to add machine. Ensure serial number is unique.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const f = (field) => ({
+    value: formData[field] || '',
+    onChange: e => setFormData({ ...formData, [field]: e.target.value })
+  });
+
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Fleet Management</h1>
+        <h1 className="page-title">Machines</h1>
         <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
           <Plus size={16}/> Add Machine
         </button>
@@ -128,14 +148,13 @@ export default function Machines() {
         onClose={() => setIsModalOpen(false)} 
         title="Add New Machine"
       >
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '1rem' }}>
           <div className="form-group">
             <label className="form-label">Link to Order</label>
             <select 
               className="form-input" 
               required 
-              value={formData.order_id}
-              onChange={e => setFormData({...formData, order_id: e.target.value})}
+              {...f('order_id')}
             >
               <option value="">-- Select Order --</option>
               {orders.map(o => (
@@ -143,36 +162,43 @@ export default function Machines() {
               ))}
             </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Serial Number</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              required 
-              value={formData.serial_number}
-              onChange={e => setFormData({...formData, serial_number: e.target.value})}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Model Name</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              required 
-              value={formData.model}
-              onChange={e => setFormData({...formData, model: e.target.value})}
-            />
+          
+          <h4 style={{ margin: '1rem 0 0.5rem 0' }}>Basic Info</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Serial Number</label>
+              <input type="text" className="form-input" required {...f('serial_number')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Model Name</label>
+              <input type="text" className="form-input" required {...f('model')} />
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label">Vendor</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              value={formData.vendor}
-              onChange={e => setFormData({...formData, vendor: e.target.value})}
-            />
+            <input type="text" className="form-input" {...f('vendor')} />
           </div>
-          <div className="modal-footer">
+
+          <h4 style={{ margin: '1rem 0 0.5rem 0' }}>Machine Specifications</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div className="form-group"><label className="form-label">Dia</label><input type="text" className="form-input" {...f('dia')} /></div>
+            <div className="form-group"><label className="form-label">Gauge</label><input type="text" className="form-input" {...f('gauge')} /></div>
+            <div className="form-group"><label className="form-label">Feeders</label><input type="text" className="form-input" {...f('feeders')} /></div>
+          </div>
+
+          <h4 style={{ margin: '1rem 0 0.5rem 0' }}>Power Details</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div className="form-group"><label className="form-label">Motor HP</label><input type="text" className="form-input" {...f('motor_hp')} /></div>
+            <div className="form-group"><label className="form-label">Inverter Cap.</label><input type="text" className="form-input" {...f('inverter_capacity')} /></div>
+            <div className="form-group"><label className="form-label">Input Voltage</label><input type="text" className="form-input" {...f('input_voltage')} /></div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Commissioning Date</label>
+            <input type="date" className="form-input" {...f('commissioning_date')} />
+          </div>
+
+          <div className="modal-footer" style={{ position: 'sticky', bottom: '-1rem', background: 'var(--bg)', padding: '1rem 0', borderTop: '1px solid var(--border)' }}>
             <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Adding...' : 'Add Machine'}

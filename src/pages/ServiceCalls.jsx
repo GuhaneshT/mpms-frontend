@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Wrench } from 'lucide-react';
+import { Plus, Wrench, Trash2 } from 'lucide-react';
 import Modal from '../components/Modal';
 
 export default function ServiceCalls() {
@@ -12,17 +12,33 @@ export default function ServiceCalls() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
   const [selectedCallId, setSelectedCallId] = useState(null);
-  const [formData, setFormData] = useState({
+  
+  const initialFormState = {
     machine_id: '',
     department: 'mechanical',
     error_description: '',
     is_warranty: false,
-    technician_id: ''
-  });
-  const [resolutionData, setResolutionData] = useState({
+    technician_id: '',
+    customer_name: '',
+    visit_date: '',
+    purpose_of_visit: 'Service call',
+    observation: '',
+    service_engg_name: '',
+    to_be_attended_on: '',
+    machine_reference: [{ mc_no: '', model: '', dia: '', gg: '', feeders: '' }]
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  const initialResolveState = {
     solution: '',
-    parts_used: ''
-  });
+    parts_used: '',
+    corrective_measures: '',
+    remarks: '',
+    attended_on: ''
+  };
+
+  const [resolutionData, setResolutionData] = useState(initialResolveState);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -46,7 +62,7 @@ export default function ServiceCalls() {
 
   const openResolveModal = (callId) => {
     setSelectedCallId(callId);
-    setResolutionData({ solution: '', parts_used: '' });
+    setResolutionData(initialResolveState);
     setIsResolveModalOpen(true);
   };
 
@@ -54,15 +70,19 @@ export default function ServiceCalls() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Include user and timestamp in the solution log
       const logHeader = `[Resolved by ${user?.email || 'Technician'} at ${new Date().toLocaleString()}]\n`;
       const fullSolution = logHeader + resolutionData.solution;
       
-      await api.patch(`/service-calls/${selectedCallId}`, { 
+      const payload = { 
         status: 'resolved',
         solution: fullSolution,
-        parts_used: resolutionData.parts_used || null
-      });
+        parts_used: resolutionData.parts_used || null,
+        corrective_measures: resolutionData.corrective_measures || null,
+        remarks: resolutionData.remarks || null,
+        attended_on: resolutionData.attended_on ? new Date(resolutionData.attended_on).toISOString() : null
+      };
+      
+      await api.patch(`/service-calls/${selectedCallId}`, payload);
       
       setIsResolveModalOpen(false);
       fetchCalls();
@@ -78,12 +98,19 @@ export default function ServiceCalls() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const payload = {
+        ...formData,
+        visit_date: formData.visit_date ? new Date(formData.visit_date).toISOString() : null,
+        to_be_attended_on: formData.to_be_attended_on ? new Date(formData.to_be_attended_on).toISOString() : null,
+      };
+      
       const cleanedData = Object.fromEntries(
-        Object.entries(formData).map(([key, value]) => [key, value === '' ? null : value])
+        Object.entries(payload).map(([key, value]) => [key, value === '' ? null : value])
       );
+      
       await api.post('/service-calls', cleanedData);
       setIsModalOpen(false);
-      setFormData({ machine_id: '', department: 'mechanical', error_description: '', is_warranty: false, technician_id: '' });
+      setFormData(initialFormState);
       fetchCalls();
     } catch (err) {
       console.error("Error creating service call:", err);
@@ -91,6 +118,24 @@ export default function ServiceCalls() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleMachineRefChange = (index, field, value) => {
+    const newRefs = [...formData.machine_reference];
+    newRefs[index][field] = value;
+    setFormData({ ...formData, machine_reference: newRefs });
+  };
+
+  const addMachineRef = () => {
+    setFormData({
+      ...formData,
+      machine_reference: [...formData.machine_reference, { mc_no: '', model: '', dia: '', gg: '', feeders: '' }]
+    });
+  };
+
+  const removeMachineRef = (index) => {
+    const newRefs = formData.machine_reference.filter((_, i) => i !== index);
+    setFormData({ ...formData, machine_reference: newRefs });
   };
 
   return (
@@ -107,30 +152,32 @@ export default function ServiceCalls() {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Customer</th>
               <th>Machine (S/N)</th>
               <th>Department</th>
               <th>Status</th>
-              <th>Date</th>
+              <th>Visit Date</th>
               <th>Assignee</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center' }}>Loading calls...</td></tr>
+              <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center' }}>Loading calls...</td></tr>
             ) : calls.length === 0 ? (
-              <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No service calls found.</td></tr>
+              <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No service calls found.</td></tr>
             ) : (
               calls.map(c => (
                 <React.Fragment key={c.id}>
                 <tr>
                   <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.id.split('-')[0]}</td>
+                  <td>{c.customer_name || 'N/A'}</td>
                   <td>{machines.find(m => m.id === c.machine_id)?.serial_number || c.machine_id.split('-')[0]}</td>
                   <td style={{ textTransform: 'capitalize' }}>{c.department.replace('_', ' ')}</td>
                   <td><span className={`status-badge status-${c.status}`}>{c.status.toUpperCase()}</span></td>
-                  <td>{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td>{c.visit_date ? new Date(c.visit_date).toLocaleDateString() : 'N/A'}</td>
                   <td style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>
-                    {c.technician_id ? c.technician_id.split('-')[0] : 'Unassigned'}
+                    {c.service_engg_name || (c.technician_id ? c.technician_id.split('-')[0] : 'Unassigned')}
                   </td>
                   <td>
                     {c.status !== 'resolved' && (
@@ -146,9 +193,11 @@ export default function ServiceCalls() {
                 </tr>
                 {c.solution && (
                   <tr>
-                    <td colSpan="6" style={{ background: 'var(--surface)', padding: '0.5rem 1.5rem', fontSize: '0.8rem', borderTop: 'none' }}>
-                      <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Resolution Log (Technician: {c.technician_id || 'Unknown'}):</div>
+                    <td colSpan="8" style={{ background: 'var(--surface)', padding: '0.5rem 1.5rem', fontSize: '0.8rem', borderTop: 'none' }}>
+                      <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Resolution Log:</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{c.solution}</div>
+                      {c.corrective_measures && <div><strong>Corrective Measures:</strong> {c.corrective_measures}</div>}
+                      {c.remarks && <div><strong>Remarks:</strong> {c.remarks}</div>}
                     </td>
                   </tr>
                 )}
@@ -162,11 +211,49 @@ export default function ServiceCalls() {
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        title="Raise New Service Call"
+        title="Raise New Service Call Report"
       >
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '1rem' }}>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Customer Name</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                required
+                value={formData.customer_name}
+                onChange={e => setFormData({...formData, customer_name: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Date</label>
+              <input 
+                type="date" 
+                className="form-input" 
+                required
+                value={formData.visit_date}
+                onChange={e => setFormData({...formData, visit_date: e.target.value})}
+              />
+            </div>
+          </div>
+
           <div className="form-group">
-            <label className="form-label">Select Machine</label>
+            <label className="form-label">Purpose of Visit</label>
+            <select 
+              className="form-input" 
+              required
+              value={formData.purpose_of_visit}
+              onChange={e => setFormData({...formData, purpose_of_visit: e.target.value})}
+            >
+              <option value="Site verification">Site verification</option>
+              <option value="Service call">Service call</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Linked Primary Machine</label>
             <select 
               className="form-input" 
               required 
@@ -179,47 +266,86 @@ export default function ServiceCalls() {
               ))}
             </select>
           </div>
+
           <div className="form-group">
-            <label className="form-label">Department</label>
-            <select 
-              className="form-input" 
-              value={formData.department}
-              onChange={e => setFormData({...formData, department: e.target.value})}
-            >
-              <option value="mechanical">Mechanical</option>
-              <option value="electrical">Electrical</option>
-              <option value="software_plc">Software/PLC</option>
-            </select>
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              Machine Reference Details
+              <button type="button" onClick={addMachineRef} style={{ fontSize: '0.8rem', color: 'var(--primary)', cursor: 'pointer', background: 'none', border: 'none' }}>+ Add Machine</button>
+            </label>
+            <div style={{ border: '1px solid var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
+              <table style={{ margin: 0, fontSize: '0.85rem' }}>
+                <thead style={{ background: 'var(--surface)' }}>
+                  <tr>
+                    <th style={{ padding: '0.5rem' }}>M/c No.</th>
+                    <th style={{ padding: '0.5rem' }}>Model</th>
+                    <th style={{ padding: '0.5rem' }}>Dia</th>
+                    <th style={{ padding: '0.5rem' }}>GG</th>
+                    <th style={{ padding: '0.5rem' }}>Feeders</th>
+                    <th style={{ padding: '0.5rem', width: '30px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {formData.machine_reference.map((ref, idx) => (
+                    <tr key={idx}>
+                      <td style={{ padding: '0.2rem' }}><input type="text" style={{ width: '100%', padding: '0.25rem' }} value={ref.mc_no} onChange={e => handleMachineRefChange(idx, 'mc_no', e.target.value)} /></td>
+                      <td style={{ padding: '0.2rem' }}><input type="text" style={{ width: '100%', padding: '0.25rem' }} value={ref.model} onChange={e => handleMachineRefChange(idx, 'model', e.target.value)} /></td>
+                      <td style={{ padding: '0.2rem' }}><input type="text" style={{ width: '100%', padding: '0.25rem' }} value={ref.dia} onChange={e => handleMachineRefChange(idx, 'dia', e.target.value)} /></td>
+                      <td style={{ padding: '0.2rem' }}><input type="text" style={{ width: '100%', padding: '0.25rem' }} value={ref.gg} onChange={e => handleMachineRefChange(idx, 'gg', e.target.value)} /></td>
+                      <td style={{ padding: '0.2rem' }}><input type="text" style={{ width: '100%', padding: '0.25rem' }} value={ref.feeders} onChange={e => handleMachineRefChange(idx, 'feeders', e.target.value)} /></td>
+                      <td style={{ padding: '0.2rem', textAlign: 'center' }}>
+                        {idx > 0 && <Trash2 size={14} color="var(--error)" style={{ cursor: 'pointer' }} onClick={() => removeMachineRef(idx)} />}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+
           <div className="form-group">
-            <label className="form-label">Error Description</label>
+            <label className="form-label">Observation</label>
             <textarea 
               className="form-input" 
-              rows="3" 
+              rows="4" 
+              placeholder="(Enclose separate sheet, if necessary)"
+              value={formData.observation}
+              onChange={e => setFormData({...formData, observation: e.target.value})}
+            ></textarea>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Error Description / Basic Notes</label>
+            <textarea 
+              className="form-input" 
+              rows="2" 
               required
               value={formData.error_description}
               onChange={e => setFormData({...formData, error_description: e.target.value})}
             ></textarea>
           </div>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input 
-              type="checkbox" 
-              checked={formData.is_warranty}
-              onChange={e => setFormData({...formData, is_warranty: e.target.checked})}
-            />
-            <label className="form-label" style={{ marginBottom: 0 }}>Under Warranty Call</label>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Service Dept. Name</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                value={formData.service_engg_name}
+                onChange={e => setFormData({...formData, service_engg_name: e.target.value})}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">To be attended on</label>
+              <input 
+                type="date" 
+                className="form-input" 
+                value={formData.to_be_attended_on}
+                onChange={e => setFormData({...formData, to_be_attended_on: e.target.value})}
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Assign Technician ID (Optional)</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="UUID of technician"
-              value={formData.technician_id}
-              onChange={e => setFormData({...formData, technician_id: e.target.value})}
-            />
-          </div>
-          <div className="modal-footer">
+
+          <div className="modal-footer" style={{ position: 'sticky', bottom: '-1rem', background: 'var(--bg)', padding: '1rem 0', borderTop: '1px solid var(--border)', marginTop: '1rem' }}>
             <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Creating...' : 'Log Service Call'}
@@ -231,34 +357,68 @@ export default function ServiceCalls() {
       <Modal 
         isOpen={isResolveModalOpen} 
         onClose={() => setIsResolveModalOpen(false)} 
-        title="Resolve Service Call"
+        title="Resolve & Close Service Call"
       >
-        <form onSubmit={handleResolve}>
+        <form onSubmit={handleResolve} style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '1rem' }}>
+          
           <div className="form-group">
-            <label className="form-label">Resolution Description *</label>
+            <label className="form-label">Attended On</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              required
+              value={resolutionData.attended_on}
+              onChange={e => setResolutionData({...resolutionData, attended_on: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Corrective Measures</label>
             <textarea 
               className="form-input" 
               rows="4" 
               required
-              placeholder="What was fixed? How was it resolved?"
+              placeholder="Describe actions taken or recommended"
+              value={resolutionData.corrective_measures}
+              onChange={e => setResolutionData({...resolutionData, corrective_measures: e.target.value})}
+            ></textarea>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Detailed Solution / Final Notes</label>
+            <textarea 
+              className="form-input" 
+              rows="3" 
               value={resolutionData.solution}
               onChange={e => setResolutionData({...resolutionData, solution: e.target.value})}
             ></textarea>
           </div>
+
           <div className="form-group">
             <label className="form-label">Parts Used (Optional)</label>
             <input 
               type="text" 
               className="form-input" 
-              placeholder="e.g. 2x M8 Bolts, PLC Cable"
               value={resolutionData.parts_used}
               onChange={e => setResolutionData({...resolutionData, parts_used: e.target.value})}
             />
           </div>
-          <div className="modal-footer">
+
+          <div className="form-group">
+            <label className="form-label">Remarks</label>
+            <textarea 
+              className="form-input" 
+              rows="2" 
+              placeholder="Final comments or summary"
+              value={resolutionData.remarks}
+              onChange={e => setResolutionData({...resolutionData, remarks: e.target.value})}
+            ></textarea>
+          </div>
+
+          <div className="modal-footer" style={{ position: 'sticky', bottom: '-1rem', background: 'var(--bg)', padding: '1rem 0', borderTop: '1px solid var(--border)', marginTop: '1rem' }}>
             <button type="button" className="btn btn-outline" onClick={() => setIsResolveModalOpen(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Resolving...' : 'Confirm Resolution'}
+              {submitting ? 'Resolving...' : 'Close Service Call'}
             </button>
           </div>
         </form>
