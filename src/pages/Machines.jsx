@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { Plus, Settings } from 'lucide-react';
+
+import { PERMISSIONS } from '../auth/permissions';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 export default function Machines() {
+  const { can } = useAuth();
   const [machines, setMachines] = useState([]);
   const [orders, setOrders] = useState([]);
   const [serviceCalls, setServiceCalls] = useState([]);
@@ -27,6 +31,7 @@ export default function Machines() {
   };
   const [formData, setFormData] = useState(initialFormState);
   const [submitting, setSubmitting] = useState(false);
+  const canManageMachines = can(PERMISSIONS.MACHINES_WRITE);
 
   useEffect(() => {
     fetchData();
@@ -90,9 +95,11 @@ export default function Machines() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Machines</h1>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={16}/> Add Machine
-        </button>
+        {canManageMachines ? (
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={16}/> Add Machine
+          </button>
+        ) : null}
       </div>
       
       <div className="table-container">
@@ -144,7 +151,7 @@ export default function Machines() {
       </div>
 
       <Modal 
-        isOpen={isModalOpen} 
+        isOpen={canManageMachines && isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         title="Add New Machine"
       >

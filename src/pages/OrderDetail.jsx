@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { ArrowLeft, CheckCircle, Circle, Plus, X, Save, ClipboardCheck, Power } from 'lucide-react';
+
+import { PERMISSIONS } from '../auth/permissions';
+import { useAuth } from '../context/AuthContext';
 
 const STEPS = [
   { id: 'order_received', label: 'Order Received' },
@@ -19,7 +22,7 @@ const UNIT_OPTIONS = [
   { value: 'l', label: 'L (litres)' },
 ];
 
-function TagList({ label, items, onChange }) {
+function TagList({ label, items, onChange, disabled = false }) {
   const [inputVal, setInputVal] = useState('');
   const add = () => {
     const v = inputVal.trim();
@@ -34,10 +37,11 @@ function TagList({ label, items, onChange }) {
           type="text" className="form-input" style={{ margin: 0, flex: 1 }}
           placeholder={`Add ${label.toLowerCase()}…`}
           value={inputVal}
+          disabled={disabled}
           onChange={e => setInputVal(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), add())}
         />
-        <button type="button" className="btn btn-outline" style={{ padding: '0.4rem 0.7rem' }} onClick={add}>
+        <button type="button" className="btn btn-outline" style={{ padding: '0.4rem 0.7rem' }} onClick={add} disabled={disabled}>
           <Plus size={14} />
         </button>
       </div>
@@ -49,10 +53,12 @@ function TagList({ label, items, onChange }) {
             fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px'
           }}>
             {item}
-            <button type="button" onClick={() => remove(i)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1 }}>
-              <X size={12} />
-            </button>
+            {!disabled ? (
+              <button type="button" onClick={() => remove(i)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1 }}>
+                <X size={12} />
+              </button>
+            ) : null}
           </span>
         ))}
       </div>
@@ -60,7 +66,7 @@ function TagList({ label, items, onChange }) {
   );
 }
 
-function ProductionChartCard({ orderId, onSaved }) {
+function ProductionChartCard({ orderId, onSaved, canWrite }) {
   const [chart, setChart] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -77,7 +83,7 @@ function ProductionChartCard({ orderId, onSaved }) {
         if (!data.machines || data.machines.length === 0) {
            data.machines = [{ machine_model: data.machine_model || '', quantity: data.quantity || 1, machine_description: data.machine_description || '' }];
         }
-        setForm({ ...form, ...data });
+        setForm((current) => ({ ...current, ...data }));
       })
       .catch(() => { });
   }, [orderId]);
@@ -120,11 +126,11 @@ function ProductionChartCard({ orderId, onSaved }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <div className="form-group">
             <label className="form-label">Production Chart Ref No</label>
-            <input type="text" className="form-input" placeholder="e.g. PC-2024-001" {...f('chart_ref_no')} />
+            <input type="text" className="form-input" placeholder="e.g. PC-2024-001" disabled={!canWrite} {...f('chart_ref_no')} />
           </div>
           <div className="form-group">
             <label className="form-label">Unit</label>
-            <select className="form-input" {...f('unit')}>
+            <select className="form-input" disabled={!canWrite} {...f('unit')}>
               {UNIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
@@ -133,25 +139,27 @@ function ProductionChartCard({ orderId, onSaved }) {
         <div className="form-group">
           <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             Machines Required
-            <button type="button" onClick={addMachineRow} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem' }}>+ Add Machine Row</button>
+            {canWrite ? (
+              <button type="button" onClick={addMachineRow} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem' }}>+ Add Machine Row</button>
+            ) : null}
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {form.machines.map((m, idx) => (
               <div key={idx} style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', position: 'relative' }}>
-                {idx > 0 && <button type="button" onClick={() => removeMachineRow(idx)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)' }}><X size={16}/></button>}
+                {canWrite && idx > 0 && <button type="button" onClick={() => removeMachineRow(idx)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)' }}><X size={16}/></button>}
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
                   <div>
                     <label className="form-label" style={{fontSize: '0.8rem'}}>Model</label>
-                    <input type="text" className="form-input" required value={m.machine_model} onChange={e => updateMachineRow(idx, 'machine_model', e.target.value)} />
+                    <input type="text" className="form-input" required disabled={!canWrite} value={m.machine_model} onChange={e => updateMachineRow(idx, 'machine_model', e.target.value)} />
                   </div>
                   <div>
                     <label className="form-label" style={{fontSize: '0.8rem'}}>Quantity</label>
-                    <input type="number" min="1" className="form-input" required value={m.quantity} onChange={e => updateMachineRow(idx, 'quantity', parseInt(e.target.value)||1)} />
+                    <input type="number" min="1" className="form-input" required disabled={!canWrite} value={m.quantity} onChange={e => updateMachineRow(idx, 'quantity', parseInt(e.target.value)||1)} />
                   </div>
                 </div>
                 <div>
                   <label className="form-label" style={{fontSize: '0.8rem'}}>Description/Specs</label>
-                  <textarea className="form-input" rows={1} value={m.machine_description} onChange={e => updateMachineRow(idx, 'machine_description', e.target.value)}></textarea>
+                  <textarea className="form-input" rows={1} disabled={!canWrite} value={m.machine_description} onChange={e => updateMachineRow(idx, 'machine_description', e.target.value)}></textarea>
                 </div>
               </div>
             ))}
@@ -159,26 +167,28 @@ function ProductionChartCard({ orderId, onSaved }) {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-          <TagList label="Accessories" items={form.accessories} onChange={v => setForm({ ...form, accessories: v })} />
-          <TagList label="Requirements" items={form.requirements} onChange={v => setForm({ ...form, requirements: v })} />
+          <TagList label="Accessories" items={form.accessories} disabled={!canWrite} onChange={v => setForm({ ...form, accessories: v })} />
+          <TagList label="Requirements" items={form.requirements} disabled={!canWrite} onChange={v => setForm({ ...form, requirements: v })} />
         </div>
 
         <div className="form-group">
           <label className="form-label">Notes</label>
-          <textarea className="form-input" rows={2} {...f('notes')} />
+          <textarea className="form-input" rows={2} disabled={!canWrite} {...f('notes')} />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            <Save size={15} /> {saving ? 'Saving…' : chart ? 'Update Chart' : 'Save Chart'}
-          </button>
-        </div>
+        {canWrite ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              <Save size={15} /> {saving ? 'Saving…' : chart ? 'Update Chart' : 'Save Chart'}
+            </button>
+          </div>
+        ) : null}
       </form>
     </div>
   );
 }
 
-function MaterialVerificationCard({ orderId }) {
+function MaterialVerificationCard({ orderId, canWrite }) {
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(null);
@@ -188,9 +198,11 @@ function MaterialVerificationCard({ orderId }) {
     api.get(`/orders/${orderId}/material-verification`)
       .then(r => setRecord(r.data))
       .catch(() => {
-        api.post(`/orders/${orderId}/material-verification`, {}).then(r => setRecord(r.data)).catch(()=>{});
+        if (canWrite) {
+          api.post(`/orders/${orderId}/material-verification`, {}).then(r => setRecord(r.data)).catch(()=>{});
+        }
       }).finally(() => setLoading(false));
-  }, [orderId]);
+  }, [orderId, canWrite]);
 
   const toggle = async (idx) => {
     setToggling(idx);
@@ -225,8 +237,8 @@ function MaterialVerificationCard({ orderId }) {
         const globalIdx = offset + localIdx;
         return (
           <div key={globalIdx}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.5rem', borderRadius: '4px', cursor: 'pointer', background: item.checked ? '#d4edda' : 'transparent' }}
-            onClick={() => !toggling && toggle(globalIdx)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.5rem', borderRadius: '4px', cursor: canWrite ? 'pointer' : 'default', background: item.checked ? '#d4edda' : 'transparent' }}
+            onClick={() => canWrite && !toggling && toggle(globalIdx)}
           >
             <span style={{ color: item.checked ? 'var(--success, #10b981)' : 'var(--text-muted)' }}>
               {item.checked ? <CheckCircle size={20} /> : <Circle size={20} />}
@@ -247,7 +259,7 @@ function MaterialVerificationCard({ orderId }) {
           <ClipboardCheck size={18} /> Material Verification Checklist
         </h3>
         {isVerified
-          ? <span style={{ background: '#28a745', color: '#fff', borderRadius: '4px', padding: '0.2rem 0.6rem', Math: '0.75rem', fontWeight: 'bold' }}>✓ Verified</span>
+          ? <span style={{ background: '#28a745', color: '#fff', borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold' }}>✓ Verified</span>
           : <span style={{ background: '#ffc107', color: '#000', borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 'bold' }}>Pending</span>
         }
       </div>
@@ -258,7 +270,7 @@ function MaterialVerificationCard({ orderId }) {
           <CheckSection title="Requirements" items={requirements} offset={accessories.length} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{checklist.filter(i => i.checked).length} / {checklist.length} checked</span>
-            {!isVerified && (
+            {canWrite && !isVerified && (
               <button className="btn btn-primary" disabled={!allDone || verifying} onClick={markVerified}>
                 <CheckCircle size={15} /> {verifying ? 'Verifying…' : 'Mark as Verified'}
               </button>
@@ -271,7 +283,7 @@ function MaterialVerificationCard({ orderId }) {
 }
 
 // ── Commissioning Card ────────────────────────────────────────────────────────
-function CommissioningCard({ orderId, orderMachines }) {
+function CommissioningCard({ orderId, orderMachines, canWrite }) {
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -291,17 +303,22 @@ function CommissioningCard({ orderId, orderMachines }) {
       })
       .catch(err => {
         if (err.response?.status === 404) {
-          api.post(`/orders/${orderId}/installation-record`, {})
-            .then(res => {
-              setRecord(res.data);
-              initData();
-            })
-            .finally(() => setLoading(false));
+          if (canWrite) {
+            api.post(`/orders/${orderId}/installation-record`, {})
+              .then(res => {
+                setRecord(res.data);
+                initData();
+              })
+              .finally(() => setLoading(false));
+          } else {
+            initData();
+            setLoading(false);
+          }
         } else {
           setLoading(false);
         }
       });
-  }, [orderId, orderMachines]);
+  }, [orderId, orderMachines, canWrite]);
 
   const initData = () => {
     if (!orderMachines || orderMachines.length === 0) return;
@@ -362,37 +379,39 @@ function CommissioningCard({ orderId, orderMachines }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">Count of Yarn</label>
-                  <input type="text" className="form-input" value={mdata.count_of_yarn || ''} onChange={e => handleChange(idx, 'count_of_yarn', e.target.value)} />
+                  <input type="text" className="form-input" disabled={!canWrite} value={mdata.count_of_yarn || ''} onChange={e => handleChange(idx, 'count_of_yarn', e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Type of Yarn</label>
-                  <input type="text" className="form-input" value={mdata.type_of_yarn || ''} onChange={e => handleChange(idx, 'type_of_yarn', e.target.value)} />
+                  <input type="text" className="form-input" disabled={!canWrite} value={mdata.type_of_yarn || ''} onChange={e => handleChange(idx, 'type_of_yarn', e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Speed of the Machine</label>
-                  <input type="text" className="form-input" value={mdata.speed || ''} onChange={e => handleChange(idx, 'speed', e.target.value)} />
+                  <input type="text" className="form-input" disabled={!canWrite} value={mdata.speed || ''} onChange={e => handleChange(idx, 'speed', e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">GSM / L.Cm</label>
-                  <input type="text" className="form-input" value={mdata.gsm_l_cm || ''} onChange={e => handleChange(idx, 'gsm_l_cm', e.target.value)} />
+                  <input type="text" className="form-input" disabled={!canWrite} value={mdata.gsm_l_cm || ''} onChange={e => handleChange(idx, 'gsm_l_cm', e.target.value)} />
                 </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Running Noise and General Remarks</label>
-                <textarea className="form-input" rows={2} value={mdata.running_noise_remarks || ''} onChange={e => handleChange(idx, 'running_noise_remarks', e.target.value)}></textarea>
+                <textarea className="form-input" rows={2} disabled={!canWrite} value={mdata.running_noise_remarks || ''} onChange={e => handleChange(idx, 'running_noise_remarks', e.target.value)}></textarea>
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Quality of Fabrics</label>
-                <textarea className="form-input" rows={2} value={mdata.fabric_quality || ''} onChange={e => handleChange(idx, 'fabric_quality', e.target.value)}></textarea>
+                <textarea className="form-input" rows={2} disabled={!canWrite} value={mdata.fabric_quality || ''} onChange={e => handleChange(idx, 'fabric_quality', e.target.value)}></textarea>
               </div>
             </div>
           ))}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              <Save size={15} /> {saving ? 'Saving...' : 'Save All Commissioning Data'}
-            </button>
-          </div>
+          {canWrite ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                <Save size={15} /> {saving ? 'Saving...' : 'Save All Commissioning Data'}
+              </button>
+            </div>
+          ) : null}
         </form>
       )}
     </div>
@@ -401,9 +420,13 @@ function CommissioningCard({ orderId, orderMachines }) {
 
 export default function OrderDetail() {
   const { id } = useParams();
+  const { can } = useAuth();
   const [order, setOrder] = useState(null);
   const [orderMachines, setOrderMachines] = useState([]);
   const [loading, setLoading] = useState(true);
+  const canManageOrder = can(PERMISSIONS.ORDERS_WRITE);
+  const canManageLifecycle = can(PERMISSIONS.ORDER_LIFECYCLE_WRITE);
+  const canManageMachines = can(PERMISSIONS.MACHINES_WRITE);
 
   useEffect(() => { fetchData(); }, [id]);
 
@@ -419,6 +442,10 @@ export default function OrderDetail() {
   };
 
   const updateStatus = async (newStatus) => {
+    if (!canManageOrder) {
+      return;
+    }
+
     try {
       await api.patch(`/orders/${id}`, { status: newStatus });
       fetchData();
@@ -457,8 +484,8 @@ export default function OrderDetail() {
               return (
                 <div key={step.id}
                   className={`step-item ${isCurrent ? 'active' : ''}`}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', position: 'relative', zIndex: 2, flex: 1, cursor: 'pointer' }}
-                  onClick={() => updateStatus(step.id)}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', position: 'relative', zIndex: 2, flex: 1, cursor: canManageOrder ? 'pointer' : 'default' }}
+                  onClick={() => canManageOrder && updateStatus(step.id)}
                 >
                   <div style={{
                     background: isCompleted ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--surface)',
@@ -479,14 +506,16 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      {order.status === 'production_chart' && <ProductionChartCard orderId={id} onSaved={fetchData} />}
-      {order.status === 'material_verified' && <MaterialVerificationCard orderId={id} />}
-      {order.status === 'commissioned' && <CommissioningCard orderId={id} orderMachines={orderMachines} />}
+      {order.status === 'production_chart' && <ProductionChartCard orderId={id} onSaved={fetchData} canWrite={canManageLifecycle} />}
+      {order.status === 'material_verified' && <MaterialVerificationCard orderId={id} canWrite={canManageLifecycle} />}
+      {order.status === 'commissioned' && <CommissioningCard orderId={id} orderMachines={orderMachines} canWrite={canManageLifecycle} />}
 
       <div className="card" style={{ marginTop: '1.5rem' }}>
         <h3 className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Machine Information
-          <Link to={`/machines`} className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}>+ Manage Machines</Link>
+          {canManageMachines ? (
+            <Link to={`/machines`} className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.85rem' }}>+ Manage Machines</Link>
+          ) : null}
         </h3>
         {orderMachines.length > 0 ? (
           <div style={{ display: 'grid', gap: '1rem' }}>

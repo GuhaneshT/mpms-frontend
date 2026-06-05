@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Plus, Edit, X, ChevronDown, ChevronUp, Trash2, UserPlus } from 'lucide-react';
+
+import { PERMISSIONS } from '../auth/permissions';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 const emptyContact = { name: '', phone: '', designation: '' };
 
 export default function Customers() {
+  const { can } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,6 +22,7 @@ export default function Customers() {
     phone: '', email: '', gst: '', contacts: [{ ...emptyContact }]
   };
   const [formData, setFormData] = useState(emptyForm);
+  const canManageCustomers = can(PERMISSIONS.CUSTOMERS_WRITE);
 
   useEffect(() => { fetchCustomers(); }, []);
 
@@ -116,9 +121,11 @@ export default function Customers() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Customers</h1>
-        <button className="btn btn-primary" onClick={openAddModal}>
-          <Plus size={16} /> Add Customer
-        </button>
+        {canManageCustomers ? (
+          <button className="btn btn-primary" onClick={openAddModal}>
+            <Plus size={16} /> Add Customer
+          </button>
+        ) : null}
       </div>
 
       <div className="table-container">
@@ -161,9 +168,11 @@ export default function Customers() {
                       ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>}
                     </td>
                     <td>
-                      <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleEdit(c)}>
-                        <Edit size={14} /> Edit
-                      </button>
+                      {canManageCustomers ? (
+                        <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleEdit(c)}>
+                          <Edit size={14} /> Edit
+                        </button>
+                      ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Read only</span>}
                     </td>
                   </tr>
                   {expandedRow === c.id && c.contacts?.length > 0 && (
@@ -192,7 +201,7 @@ export default function Customers() {
       </div>
 
       <Modal
-        isOpen={isModalOpen}
+        isOpen={canManageCustomers && isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingCustomer ? 'Edit Customer' : 'Add New Customer'}
       >

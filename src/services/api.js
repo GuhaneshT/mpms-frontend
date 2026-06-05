@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from '../config/supabase';
+import { supabase, hasSupabaseConfig } from '../config/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -8,6 +8,10 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  if (!hasSupabaseConfig || !supabase) {
+    return config;
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
     config.headers.Authorization = `Bearer ${session.access_token}`;

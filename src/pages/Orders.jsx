@@ -1,16 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { Plus, ArrowRight } from 'lucide-react';
+
+import { PERMISSIONS } from '../auth/permissions';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 export default function Orders() {
+  const { can } = useAuth();
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ customer_id: '' });
   const [submitting, setSubmitting] = useState(false);
+  const canManageOrders = can(PERMISSIONS.ORDERS_WRITE);
 
   useEffect(() => {
     fetchOrders();
@@ -51,9 +56,11 @@ export default function Orders() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Orders</h1>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={16}/> Create Order
-        </button>
+        {canManageOrders ? (
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={16}/> Create Order
+          </button>
+        ) : null}
       </div>
       
       <div className="table-container">
@@ -92,7 +99,7 @@ export default function Orders() {
       </div>
 
       <Modal 
-        isOpen={isModalOpen} 
+        isOpen={canManageOrders && isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         title="Create New Order"
       >

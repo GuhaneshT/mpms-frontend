@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Wrench, Trash2 } from 'lucide-react';
+
+import { PERMISSIONS } from '../auth/permissions';
 import Modal from '../components/Modal';
 
 export default function ServiceCalls() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const [calls, setCalls] = useState([]);
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,8 @@ export default function ServiceCalls() {
 
   const [resolutionData, setResolutionData] = useState(initialResolveState);
   const [submitting, setSubmitting] = useState(false);
+  const canCreateServiceCalls = can(PERMISSIONS.SERVICE_CALLS_WRITE);
+  const canResolveServiceCalls = can(PERMISSIONS.SERVICE_CALLS_RESOLVE);
 
   useEffect(() => {
     fetchCalls();
@@ -61,6 +65,10 @@ export default function ServiceCalls() {
   };
 
   const openResolveModal = (callId) => {
+    if (!canResolveServiceCalls) {
+      return;
+    }
+
     setSelectedCallId(callId);
     setResolutionData(initialResolveState);
     setIsResolveModalOpen(true);
@@ -142,9 +150,11 @@ export default function ServiceCalls() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Service Calls</h1>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={16}/> New Call
-        </button>
+        {canCreateServiceCalls ? (
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={16}/> New Call
+          </button>
+        ) : null}
       </div>
       
       <div className="table-container">
@@ -180,7 +190,7 @@ export default function ServiceCalls() {
                     {c.service_engg_name || (c.technician_id ? c.technician_id.split('-')[0] : 'Unassigned')}
                   </td>
                   <td>
-                    {c.status !== 'resolved' && (
+                    {canResolveServiceCalls && c.status !== 'resolved' && (
                       <button 
                         className="btn btn-outline" 
                         style={{ padding: '0.25rem 0.5rem' }}
@@ -209,7 +219,7 @@ export default function ServiceCalls() {
       </div>
 
       <Modal 
-        isOpen={isModalOpen} 
+        isOpen={canCreateServiceCalls && isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         title="Raise New Service Call Report"
       >
@@ -355,7 +365,7 @@ export default function ServiceCalls() {
       </Modal>
 
       <Modal 
-        isOpen={isResolveModalOpen} 
+        isOpen={canResolveServiceCalls && isResolveModalOpen} 
         onClose={() => setIsResolveModalOpen(false)} 
         title="Resolve & Close Service Call"
       >

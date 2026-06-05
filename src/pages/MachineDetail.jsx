@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { ArrowLeft, Settings, Wrench, Shield, Calendar, Activity } from 'lucide-react';
+
+import { PERMISSIONS } from '../auth/permissions';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 
 export default function MachineDetail() {
   const { id } = useParams();
+  const { can } = useAuth();
   const [machine, setMachine] = useState(null);
   const [serviceCalls, setServiceCalls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,9 @@ export default function MachineDetail() {
     input_voltage: ''
   });
   const [updating, setUpdating] = useState(false);
+  const canManageMachine = can(PERMISSIONS.MACHINES_WRITE);
+  const canReadServiceCalls = can(PERMISSIONS.SERVICE_CALLS_READ);
+  const canCreateServiceCalls = can(PERMISSIONS.SERVICE_CALLS_WRITE);
 
   useEffect(() => {
     fetchData();
@@ -36,8 +43,12 @@ export default function MachineDetail() {
       const mRes = await api.get(`/machines/${id}`);
       setMachine(mRes.data);
       
-      const sRes = await api.get('/service-calls').catch(() => ({ data: [] }));
-      setServiceCalls(sRes.data.filter(c => c.machine_id === id));
+      if (canReadServiceCalls) {
+        const sRes = await api.get('/service-calls').catch(() => ({ data: [] }));
+        setServiceCalls(sRes.data.filter(c => c.machine_id === id));
+      } else {
+        setServiceCalls([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -164,18 +175,22 @@ export default function MachineDetail() {
             </div>
           </div>
           
-          <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem' }} onClick={openEditModal}>
-            Edit Machine Details
-          </button>
+          {canManageMachine ? (
+            <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem' }} onClick={openEditModal}>
+              Edit Machine Details
+            </button>
+          ) : null}
         </div>
 
         <div>
           <div className="card">
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                <h3 className="card-title" style={{ marginBottom: 0 }}>Service History</h3>
-               <Link to="/service-calls" className="btn btn-outline btn-sm" style={{ padding: '0.25rem 0.75rem' }}>
-                 <Wrench size={14} /> Log New Call
-               </Link>
+               {canCreateServiceCalls ? (
+                 <Link to="/service-calls" className="btn btn-outline btn-sm" style={{ padding: '0.25rem 0.75rem' }}>
+                   <Wrench size={14} /> Log New Call
+                 </Link>
+               ) : null}
              </div>
              
              {serviceCalls.length === 0 ? (
@@ -214,7 +229,7 @@ export default function MachineDetail() {
         </div>
       </div>
       
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Machine">
+      <Modal isOpen={canManageMachine && isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Machine">
         <form onSubmit={handleUpdate} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '1rem' }}>
           <div className="form-group">
             <label className="form-label">Status</label>

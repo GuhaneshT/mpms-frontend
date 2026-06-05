@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { PERMISSIONS } from '../auth/permissions';
 import ReliabilityChart from '../components/ReliabilityChart';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { displayName, can } = useAuth();
   const [metrics, setMetrics] = useState({
     open_service_calls_count: 0,
     machines_under_warranty_count: 0,
@@ -33,7 +34,7 @@ export default function Dashboard() {
       
       <div className="dashboard-grid-top">
         <div className="card">
-          <h2 className="card-title">Welcome back, {user?.email?.split('@')[0] || 'User'}</h2>
+          <h2 className="card-title">Welcome back, {displayName}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Your operational hub for knitting machinery lifecycle and service records.
           </p>
@@ -70,9 +71,15 @@ export default function Dashboard() {
           </div>
           <div className="card" style={{ background: 'var(--primary)', color: 'white' }}>
              <h4 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Quick Actions</h4>
-             <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none' }} onClick={() => window.location.href='/service-calls'}>
-               Log Service Call
-             </button>
+             {can(PERMISSIONS.SERVICE_CALLS_WRITE) ? (
+               <button className="btn" style={{ width: '100%', background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none' }} onClick={() => window.location.href='/service-calls'}>
+                 Log Service Call
+               </button>
+             ) : (
+               <p style={{ margin: 0, fontSize: '0.875rem', color: 'rgba(255,255,255,0.8)' }}>
+                 You have read-only access in this workspace.
+               </p>
+             )}
           </div>
         </div>
       </div>
